@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Harper's Butterfly Garden</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#6a0dad" />
+
+  <!-- iOS home screen support -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Butterfly Garden" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="game-shell">
+
+    <!-- Layer 1: Background -->
+    <div id="background-layer"></div>
+
+    <!-- Layer 2: Game Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Layer 3: UI Overlay -->
+    <div id="ui-layer">
+
+      <!-- Top bar -->
+      <div id="top-bar">
+        <div id="progress-tracker">
+          <span class="tracker-letter" data-index="0">H</span>
+          <span class="tracker-letter" data-index="1">A</span>
+          <span class="tracker-letter" data-index="2">R</span>
+          <span class="tracker-letter" data-index="3">P</span>
+          <span class="tracker-letter" data-index="4">E</span>
+          <span class="tracker-letter" data-index="5">R</span>
+        </div>
+        <div id="top-controls">
+          <button id="mute-btn" title="Mute / Unmute">🔊</button>
+          <button id="restart-btn" title="Restart">↺</button>
+        </div>
+      </div>
+
+      <!-- Toast message -->
+      <div id="toast"></div>
+
+    </div><!-- /#ui-layer -->
+
+    <!-- Welcome Screen Overlay -->
+    <div id="welcome-overlay" class="overlay">
+      <div class="overlay-box">
+        <h1 class="title">🦋 Harper's<br>Butterfly Garden</h1>
+        <p class="subtitle">Help your butterfly collect all the letters<br>to spell <strong>HARPER</strong>!</p>
+        <button id="start-btn" class="big-btn">Start Playing!</button>
+      </div>
+    </div>
+
+    <!-- Instruction Overlay (fades on first touch) -->
+    <div id="instruction-overlay">
+      <p>Tap or drag to guide your butterfly ✨</p>
+    </div>
+
+    <!-- Win Overlay -->
+    <div id="win-overlay" class="overlay hidden">
+      <div class="overlay-box win-box">
+        <div id="win-title">🦋 H A R P E R 🦋</div>
+        <p class="win-message">Amazing job, Harper!<br>You collected all the letters! 🌸</p>
+        <button id="play-again-btn" class="big-btn">Play Again!</button>
+      </div>
+    </div>
+
+  </div><!-- /#game-shell -->
+
+  <script src="game.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
