@@ -24,6 +24,8 @@ function refreshTrackerRefs() {
   trackerLetters = document.querySelectorAll('.tracker-letter');
 }
 
+
+
 // ── Backgrounds ─────────────────────────────────────────────
 const backgroundLayer = document.getElementById('background-layer');
 
@@ -400,6 +402,7 @@ function showToast(msg) {
 // ── Win Handling ─────────────────────────────────────────────
 function triggerWin() {
   gameState = 'won';
+  updateWinTitle(currentWord);
   butterfly.targetX = canvas.width  * 0.5;
   butterfly.targetY = canvas.height * 0.5;
   spawnPetalBurst();
