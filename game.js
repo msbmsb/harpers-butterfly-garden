@@ -17,7 +17,70 @@ const playAgainBtn       = document.getElementById('play-again-btn');
 const muteBtn            = document.getElementById('mute-btn');
 const restartBtn         = document.getElementById('restart-btn');
 const toast              = document.getElementById('toast');
-const trackerLetters     = document.querySelectorAll('.tracker-letter');
+//const trackerLetters     = document.querySelectorAll('.tracker-letter');
+let trackerLetters = document.querySelectorAll('.tracker-letter');
+
+function refreshTrackerRefs() {
+  trackerLetters = document.querySelectorAll('.tracker-letter');
+}
+
+// ── Backgrounds ─────────────────────────────────────────────
+const backgroundLayer = document.getElementById('background-layer');
+
+const BACKGROUNDS = [
+  'images/bg-garden-animals.png',
+  'images/bg-garden-gate.png',
+  'images/bg-garden-meadow.png',
+  'images/bg-garden-ocean.png',
+  'images/bg-garden-stream.png'
+];
+
+function setRandomBackground() {
+  const bg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)];
+  backgroundLayer.style.backgroundImage = `url('${bg}')`;
+}
+
+// ── Word System ────────────────────────────────────────────
+const FIRST_WORD = 'HARPER';
+
+const WORDS = [
+  'FLOWER',
+  'GARDEN',
+  'MEADOW',
+  'BUTTERFLY',
+  'SUNSHINE',
+  'RAINBOW',
+  'BLOSSOM',
+  'SPRING'
+];
+
+let currentWord = FIRST_WORD;
+let hasPlayedOnce = false;
+
+function pickNextWord() {
+  if (!hasPlayedOnce) {
+    hasPlayedOnce = true;
+    return FIRST_WORD;
+  }
+
+  return WORDS[Math.floor(Math.random() * WORDS.length)];
+}
+
+const progressTracker = document.getElementById('progress-tracker');
+
+function buildTracker(word) {
+  progressTracker.innerHTML = '';
+
+  word.split('').forEach((char, i) => {
+    const span = document.createElement('span');
+    span.className = 'tracker-letter';
+    span.dataset.index = i;
+    span.textContent = char;
+    progressTracker.appendChild(span);
+  });
+    
+  refreshTrackerRefs();
+}
 
 // ── State machine ───────────────────────────────────────────
 // states: 'welcome' | 'playing' | 'won'
@@ -25,6 +88,43 @@ let gameState = 'welcome';
 
 // ── Mute ────────────────────────────────────────────────────
 let muted = false;
+
+// ── Idle Hint ───────────────────────────────────────────────
+const IDLE_HINT_MS = 8000;
+
+let idleHintTimer = null;
+let hintedLetterIndex = null;
+
+function clearIdleHint() {
+  if (idleHintTimer) {
+    clearTimeout(idleHintTimer);
+    idleHintTimer = null;
+  }
+
+  hintedLetterIndex = null;
+  trackerLetters.forEach(el => el.classList.remove('hint'));
+}
+
+function scheduleIdleHint() {
+  clearIdleHint();
+
+  if (gameState !== 'playing') return;
+
+  idleHintTimer = setTimeout(() => {
+    const uncollected = letters.filter(l => !l.collected);
+    if (uncollected.length === 0 || gameState !== 'playing') return;
+
+    const letter = uncollected[Math.floor(Math.random() * uncollected.length)];
+    hintedLetterIndex = letter.index;
+
+    trackerLetters[letter.index]?.classList.add('hint');
+  }, IDLE_HINT_MS);
+}
+
+function resetIdleHintTimer() {
+  clearIdleHint();
+  scheduleIdleHint();
+}
 
 // ── Butterfly (player-controlled) ───────────────────────────
 const butterfly = {
@@ -50,6 +150,7 @@ const demo = {
 
 // ── Letters ─────────────────────────────────────────────────
 // Positions are fractional (0–1), resolved to canvas px each frame
+/*
 const LETTER_DEFS = [
   { char: 'H', fx: 0.15, fy: 0.70 },
   { char: 'A', fx: 0.30, fy: 0.40 },
@@ -58,18 +159,61 @@ const LETTER_DEFS = [
   { char: 'E', fx: 0.45, fy: 0.75 },
   { char: 'R', fx: 0.82, fy: 0.65 },
 ];
+ */
+
+// ── Letters ─────────────────────────────────────────────────
+// Zones are fractional screen ranges: 0–1 across width/height.
+// Tune these so letters stay in good garden/background areas.
+const LETTER_DEFS = [
+  { char: 'H', zone: { minX: 0.10, maxX: 0.25, minY: 0.58, maxY: 0.78 } },
+  { char: 'A', zone: { minX: 0.24, maxX: 0.40, minY: 0.32, maxY: 0.52 } },
+  { char: 'R', zone: { minX: 0.45, maxX: 0.62, minY: 0.50, maxY: 0.68 } },
+  { char: 'P', zone: { minX: 0.62, maxX: 0.78, minY: 0.28, maxY: 0.48 } },
+  { char: 'E', zone: { minX: 0.34, maxX: 0.54, minY: 0.66, maxY: 0.82 } },
+  { char: 'R', zone: { minX: 0.74, maxX: 0.90, minY: 0.54, maxY: 0.74 } },
+];
 
 let letters = [];
 
-function initLetters() {
-  letters = LETTER_DEFS.map((def, i) => ({
-    char:      def.char,
-    index:     i,
-    fx:        def.fx,
-    fy:        def.fy,
+function pickZoneForIndex(i, total) {
+  // Spread letters across screen horizontally
+  const slice = 1 / total;
+
+  return {
+    minX: slice * i + 0.05,
+    maxX: slice * (i + 1) - 0.05,
+    minY: 0.3,
+    maxY: 0.8
+  };
+}
+
+function generateLetterDefs(word) {
+  return word.split('').map((char, i) => ({
+    char,
+    index: i,
+    zone: pickZoneForIndex(i, word.length)
+  }));
+}
+
+function randomInRange(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function initLetters(word) {
+  const defs = generateLetterDefs(word);
+
+  letters = defs.map((def, i) => ({
+    char: def.char,
+    index: i,
+    fx: randomInRange(def.zone.minX, def.zone.maxX),
+    fy: randomInRange(def.zone.minY, def.zone.maxY),
     collected: false,
     glowPhase: Math.random() * Math.PI * 2,
   }));
+
+  // rebuild tracker DOM + cache references again
+  buildTracker(word);
+  refreshTrackerRefs();
 }
 
 function letterX(l) { return l.fx * canvas.width;  }
@@ -92,7 +236,7 @@ function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return;
     const saved = JSON.parse(raw);
-    if (!Array.isArray(saved) || saved.length !== LETTER_DEFS.length) return;
+    if (!Array.isArray(saved) || saved.length !== currentWord.length) return;
     saved.forEach((collected, i) => {
       if (collected) {
         letters[i].collected = true;
@@ -103,7 +247,8 @@ function loadProgress() {
     // showing the win screen immediately on Start would be confusing for a child
     if (letters.every(l => l.collected)) {
       clearProgress();
-      initLetters();
+      currentWord = pickNextWord();
+      initLetters(currentWord);
       trackerLetters.forEach(el => el.classList.remove('collected'));
     }
   } catch (_) { /* corrupted save — ignore */ }
@@ -126,9 +271,9 @@ function spawnBurst(x, y, count = 20) {
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed - 80,
       life: 1,
-      maxLife: 0.6 + Math.random() * 0.6,
+      maxLife: 0.9 + Math.random() * 0.9,
       color: colors[Math.floor(Math.random() * colors.length)],
-      size: 3 + Math.random() * 4,
+      size: 4 + Math.random() * 6,
     });
   }
 }
@@ -148,18 +293,20 @@ function spawnTrail(x, y) {
 }
 
 function spawnPetalBurst() {
-  const colors = ['#ffb3de','#c3b1e1','#ffd700','#b5ead7','#ff9eb5'];
-  for (let i = 0; i < 60; i++) {
+  const colors = ['#ffb3de','#c3b1e1','#ffd700','#b5ead7','#ff9eb5','#ffffff'];
+
+  for (let i = 0; i < 140; i++) {
     const side = Math.random() > 0.5 ? 1 : -1;
+
     particles.push({
-      x: canvas.width  * (0.2 + Math.random() * 0.6),
-      y: -20,
-      vx: (Math.random() - 0.5) * 60 + side * 20,
-      vy: 60 + Math.random() * 150,
+      x: canvas.width * (0.1 + Math.random() * 0.8),
+      y: -30 - Math.random() * 120,
+      vx: (Math.random() - 0.5) * 90 + side * 25,
+      vy: 50 + Math.random() * 170,
       life: 1,
-      maxLife: 1.5 + Math.random() * 1.5,
+      maxLife: 3.0 + Math.random() * 2.5,
       color: colors[Math.floor(Math.random() * colors.length)],
-      size: 6 + Math.random() * 8,
+      size: 7 + Math.random() * 11,
       petal: true,
     });
   }
@@ -217,6 +364,7 @@ function dismissInstruction() {
 canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
   if (gameState !== 'playing') return;
+  resetIdleHintTimer();
   pointerDown = true;
   const pos = getCanvasPos(e);
   butterfly.targetX = pos.x;
@@ -227,6 +375,7 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointermove', e => {
   e.preventDefault();
   if (gameState !== 'playing' || !pointerDown) return;
+  resetIdleHintTimer();
   const pos = getCanvasPos(e);
   butterfly.targetX = pos.x;
   butterfly.targetY = pos.y;
@@ -257,9 +406,18 @@ function triggerWin() {
   setTimeout(() => winOverlay.classList.remove('hidden'), 1000);
 }
 
+const winTitle = document.getElementById('win-title');
+
+function updateWinTitle(word) {
+  winTitle.textContent = `🦋 ${word.split('').join(' ')} 🦋`;
+}
+
 // ── Reset ────────────────────────────────────────────────────
 function resetGame(keepProgress = false) {
-  initLetters();
+  updateWinTitle(currentWord);
+  setRandomBackground();
+  currentWord = pickNextWord();
+  initLetters(currentWord);
   if (keepProgress) {
     loadProgress();
   } else {
@@ -281,6 +439,7 @@ function resetGame(keepProgress = false) {
   if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
   if (!letters.every(l => l.collected)) {
     gameState = 'playing';
+    scheduleIdleHint();
     instructionDismissed = false;
     instructionOverlay.classList.remove('hidden');
   }
@@ -326,7 +485,12 @@ function tryCollect() {
       l.collected = true;
       anyNew = true;
       trackerLetters[l.index].classList.add('collected');
-      spawnBurst(lx, ly, 22);
+      if (hintedLetterIndex === l.index) {
+        clearIdleHint();
+        scheduleIdleHint();
+      }
+      spawnBurst(lx, ly, 45);
+      spawnBurst(butterfly.x, butterfly.y, 18);
       showToast(COLLECTION_MESSAGES[Math.floor(Math.random() * COLLECTION_MESSAGES.length)](l.char));
     }
   }
@@ -587,7 +751,8 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 // ── Boot ─────────────────────────────────────────────────────
-initLetters();
+currentWord = pickNextWord();
+initLetters(currentWord);
 butterfly.x = butterfly.targetX = canvas.width  * 0.5;
 butterfly.y = butterfly.targetY = canvas.height * 0.5;
 

@@ -55,7 +55,7 @@ body {
 */
 
 #background-layer {
-  background-image: url('images/bg-garden.png');
+  background-image: url('images/bg-garden-animals.png');
   background-size: cover;
   background-position: center bottom;
 }
@@ -237,10 +237,45 @@ body {
   margin-bottom: 28px;
 }
 
+/* ── Splash Screen ───────────────────────────────────────── */
+.splash-overlay {
+  background-image: url('images/splash-screen.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  backdrop-filter: none;
+  align-items: flex-end;
+  padding-bottom: max(48px, env(safe-area-inset-bottom));
+}
+
+.splash-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(20, 5, 50, 0.05) 0%,
+    rgba(20, 5, 50, 0.05) 55%,
+    rgba(20, 5, 50, 0.45) 100%
+  );
+  pointer-events: none;
+}
+
+.splash-start-btn {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 24px;
+  font-size: 1.25rem;
+  box-shadow:
+    0 4px 20px rgba(124, 77, 255, 0.7),
+    0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
 /* ── Win Screen ─────────────────────────────────────────── */
 .win-box {
-  background: rgba(255, 220, 50, 0.12);
-  border-color: rgba(255, 210, 0, 0.5);
+  background: rgba(255, 220, 50, 0.18);
+  border-color: rgba(255, 210, 0, 0.7);
+  animation: win-box-pop 0.7s ease both;
 }
 
 #win-title {
@@ -256,6 +291,20 @@ body {
 @keyframes win-glow {
   from { text-shadow: 0 0 10px rgba(255,210,0,0.5), 0 2px 4px rgba(0,0,0,0.4); }
   to   { text-shadow: 0 0 30px rgba(255,210,0,1),   0 2px 4px rgba(0,0,0,0.4); }
+}
+
+@keyframes win-box-pop {
+  0% {
+    transform: scale(0.75);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .win-message {
@@ -303,4 +352,23 @@ body {
   .subtitle { margin-bottom: 16px; font-size: 0.95rem; }
   #top-bar { padding: 5px 12px; }
   .tracker-letter { width: 30px; height: 30px; font-size: 1rem; }
+}
+
+.tracker-letter.hint {
+  animation: hint-bounce 0.7s ease-in-out infinite;
+  color: #fff;
+  background: rgba(255, 220, 80, 0.45);
+  border-color: #ffd700;
+  box-shadow:
+    0 0 10px 3px #ffd700,
+    0 0 26px 8px rgba(255, 220, 80, 0.6);
+}
+
+@keyframes hint-bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-7px) scale(1.15);
+  }
 }
