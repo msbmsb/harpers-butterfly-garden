@@ -88,6 +88,23 @@ function buildTracker(word) {
 // states: 'welcome' | 'playing' | 'won'
 let gameState = 'welcome';
 
+// ── Power Ups ──────────────────────────────────────────────
+let powerUp = null;
+let activePowerUp = null;
+let powerUpTimer = null;
+let activePowerUpEndsAt = 0;
+const SURPRISE_DURATION_MS = 8000;
+
+const POWER_UP_TYPES = [
+  'GIANT',
+  'FLOCK',
+  'TRAIL',
+  'RAINBOW_TRAIL',
+  'FLOWER_BLOOM',
+  'SPARKLE_STORM',
+  'NIGHT_MODE_WITH_FIREFLIES'
+];
+
 // ── Mute ────────────────────────────────────────────────────
 let muted = false;
 
@@ -262,6 +279,11 @@ function clearProgress() {
 
 // ── Particles ───────────────────────────────────────────────
 let particles = [];
+let rainbowTrail = [];
+let flowerBlooms = [];
+let sparkleStorm = [];
+let fireflies = [];
+let spiralDash = null;
 
 function spawnBurst(x, y, count = 20) {
   const colors = ['#ff80d5','#c77dff','#ffdb58','#80ffea','#ff9a3c','#ffffff'];
@@ -322,6 +344,302 @@ function updateParticles(dt) {
     if (!p.petal) p.vy += 120 * dt; // gravity px/s²
     p.life -= dt / p.maxLife;
   }
+}
+
+function spawnRainbowTrailBurst(x, y) {
+  const colors = ['#ff4d6d', '#ff9f1c', '#ffe45e', '#4cd964', '#3fa7ff', '#9b5cff'];
+
+  for (let i = 0; i < 7; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const drift = 20 + Math.random() * 35;
+
+    rainbowTrail.push({
+      x: x + (Math.random() - 0.5) * 24,
+      y: y + (Math.random() - 0.5) * 24,
+      vx: Math.cos(angle) * drift,
+      vy: Math.sin(angle) * drift - 12,
+      life: 1,
+      maxLife: 0.55 + Math.random() * 0.45,
+      color: colors[i % colors.length],
+      size: 6 + Math.random() * 8,
+    });
+  }
+}
+
+function updateRainbowTrail(dt) {
+  rainbowTrail = rainbowTrail.filter(p => p.life > 0);
+
+  for (const p of rainbowTrail) {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= Math.pow(0.2, dt);
+    p.vy *= Math.pow(0.2, dt);
+    p.life -= dt / p.maxLife;
+  }
+}
+
+function drawRainbowTrail() {
+  for (const p of rainbowTrail) {
+    const alpha = Math.max(0, p.life);
+
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.9;
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function initFlowerBloom() {
+  flowerBlooms = [];
+  const petalColors = ['#ff77b7', '#ffb347', '#ffd93d', '#8be28b', '#8ec5ff', '#d5a6ff'];
+  const count = 18;
+
+  for (let i = 0; i < count; i++) {
+    flowerBlooms.push({
+      x: canvas.width * (0.08 + Math.random() * 0.84),
+      y: canvas.height * (0.18 + Math.random() * 0.68),
+      size: 24 + Math.random() * 26,
+      color: petalColors[Math.floor(Math.random() * petalColors.length)],
+      centerColor: Math.random() > 0.5 ? '#fff3a6' : '#ffe066',
+      rotation: Math.random() * Math.PI * 2,
+      petals: 5 + Math.floor(Math.random() * 3),
+      drift: (Math.random() - 0.5) * 16,
+      twirl: (Math.random() - 0.5) * 0.8,
+      delay: Math.random() * 1.8,
+      phase: Math.random() * Math.PI * 2,
+      life: 0,
+      maxLife: 5.2 + Math.random() * 1.2,
+    });
+  }
+}
+
+function updateFlowerBloom(dt) {
+  flowerBlooms = flowerBlooms.filter(f => f.life < f.maxLife + f.delay);
+
+  for (const f of flowerBlooms) {
+    f.life += dt;
+    f.phase += dt * 2.2;
+    f.rotation += f.twirl * dt;
+    f.y += Math.sin(f.phase) * 1.8 * dt;
+    f.x += f.drift * dt;
+  }
+}
+
+function drawFlowerBloom() {
+  for (const f of flowerBlooms) {
+    const age = f.life - f.delay;
+    if (age <= 0) continue;
+
+    const appear = Math.min(1, age / 0.45);
+    const disappear = Math.min(1, Math.max(0, (f.maxLife - age) / 0.8));
+    const alpha = Math.min(appear, disappear);
+    if (alpha <= 0) continue;
+
+    const scale = 0.35 + Math.sin(Math.min(1, appear) * Math.PI * 0.5) * 0.75;
+
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.rotation);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = alpha * 0.95;
+
+    for (let i = 0; i < f.petals; i++) {
+      ctx.save();
+      ctx.rotate((Math.PI * 2 * i) / f.petals);
+      ctx.fillStyle = f.color;
+      ctx.beginPath();
+      ctx.ellipse(0, -f.size * 0.42, f.size * 0.24, f.size * 0.48, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.fillStyle = f.centerColor;
+    ctx.shadowColor = 'rgba(255, 240, 120, 0.9)';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(0, 0, f.size * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function initSparkleStorm() {
+  sparkleStorm = [];
+
+  for (let i = 0; i < 150; i++) {
+    sparkleStorm.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 20,
+      vy: -6 + Math.random() * 12,
+      size: 5 + Math.random() * 9,
+      life: Math.random() * 0.5,
+      maxLife: 2.2 + Math.random() * 1.6,
+      twinkle: Math.random() * Math.PI * 2,
+      color: Math.random() > 0.5 ? '#ffffff' : '#fff4b0',
+    });
+  }
+}
+
+function updateSparkleStorm(dt) {
+  sparkleStorm = sparkleStorm.filter(s => s.life < s.maxLife);
+
+  if (activePowerUp === 'SPARKLE_STORM' && sparkleStorm.length < 110) {
+    for (let i = 0; i < 8; i++) {
+      sparkleStorm.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 20,
+        vy: -6 + Math.random() * 12,
+        size: 5 + Math.random() * 9,
+        life: 0,
+        maxLife: 1.4 + Math.random() * 1.8,
+        twinkle: Math.random() * Math.PI * 2,
+        color: Math.random() > 0.5 ? '#ffffff' : '#fff4b0',
+      });
+    }
+  }
+
+  for (const s of sparkleStorm) {
+    s.life += dt;
+    s.twinkle += dt * (6 + Math.random() * 2);
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+  }
+}
+
+function drawSparkleStorm() {
+  for (const s of sparkleStorm) {
+    const appear = Math.min(1, s.life / 0.35);
+    const disappear = Math.min(1, Math.max(0, (s.maxLife - s.life) / 0.7));
+    const alpha = Math.min(appear, disappear) * (0.5 + (Math.sin(s.twinkle) + 1) * 0.25);
+    if (alpha <= 0) continue;
+
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = s.color;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(-s.size, 0);
+    ctx.lineTo(s.size, 0);
+    ctx.moveTo(0, -s.size);
+    ctx.lineTo(0, s.size);
+    ctx.moveTo(-s.size * 0.6, -s.size * 0.6);
+    ctx.lineTo(s.size * 0.6, s.size * 0.6);
+    ctx.moveTo(s.size * 0.6, -s.size * 0.6);
+    ctx.lineTo(-s.size * 0.6, s.size * 0.6);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function initFireflies() {
+  fireflies = [];
+
+  for (let i = 0; i < 34; i++) {
+    fireflies.push({
+      x: Math.random() * canvas.width,
+      y: canvas.height * (0.15 + Math.random() * 0.75),
+      vx: (Math.random() - 0.5) * 16,
+      vy: (Math.random() - 0.5) * 10,
+      phase: Math.random() * Math.PI * 2,
+      pulse: 1.5 + Math.random() * 2,
+      size: 2 + Math.random() * 3,
+    });
+  }
+}
+
+function updateFireflies(dt) {
+  for (const f of fireflies) {
+    f.phase += dt * f.pulse;
+    f.x += f.vx * dt + Math.sin(f.phase * 1.7) * 10 * dt;
+    f.y += f.vy * dt + Math.cos(f.phase * 1.1) * 6 * dt;
+
+    if (f.x < -20) f.x = canvas.width + 20;
+    if (f.x > canvas.width + 20) f.x = -20;
+    if (f.y < canvas.height * 0.08) f.y = canvas.height * 0.08;
+    if (f.y > canvas.height * 0.95) f.y = canvas.height * 0.95;
+  }
+}
+
+function drawFireflies(alpha) {
+  for (const f of fireflies) {
+    const glow = (Math.sin(f.phase * 2.2) + 1) * 0.5;
+
+    ctx.save();
+    ctx.globalAlpha = alpha * (0.3 + glow * 0.7);
+    ctx.fillStyle = '#ffe96b';
+    ctx.shadowColor = '#fff7b3';
+    ctx.shadowBlur = 14 + glow * 12;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.size + glow * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function initSpiralDash() {
+  spiralDash = {
+    centerX: butterfly.x,
+    centerY: butterfly.y,
+    resumeTargetX: butterfly.targetX,
+    resumeTargetY: butterfly.targetY,
+    angle: Math.atan2(butterfly.targetY - butterfly.y, butterfly.targetX - butterfly.x),
+    radius: Math.min(canvas.width, canvas.height) * 0.14,
+    turns: Math.PI * 5,
+    duration: 1.1,
+    elapsed: 0,
+  };
+}
+
+function updateSpiralDash(dt) {
+  if (!spiralDash) return;
+
+  spiralDash.elapsed += dt;
+  const progress = Math.min(1, spiralDash.elapsed / spiralDash.duration);
+  const eased = 1 - Math.pow(1 - progress, 3);
+  const radius = spiralDash.radius * (1 - eased);
+  const angle = spiralDash.angle + spiralDash.turns * eased;
+
+  butterfly.targetX = spiralDash.centerX + Math.cos(angle) * radius;
+  butterfly.targetY = spiralDash.centerY + Math.sin(angle) * radius;
+
+  if (progress >= 1) {
+    butterfly.targetX = spiralDash.resumeTargetX;
+    butterfly.targetY = spiralDash.resumeTargetY;
+    spiralDash = null;
+  }
+}
+
+function surpriseOverlayAlpha() {
+  if (activePowerUp !== 'NIGHT_MODE_WITH_FIREFLIES') return 0;
+
+  const remaining = activePowerUpEndsAt - performance.now();
+  const duration = SURPRISE_DURATION_MS;
+  const elapsed = Math.max(0, duration - remaining);
+  const fadeIn = Math.min(1, elapsed / 700);
+  const fadeOut = Math.min(1, Math.max(0, remaining / 900));
+  return 0.5 * Math.min(fadeIn, fadeOut);
+}
+
+function clearSurpriseEffects() {
+  flock = [];
+  rainbowTrail = [];
+  flowerBlooms = [];
+  sparkleStorm = [];
+  fireflies = [];
+  spiralDash = null;
+  butterfly.scale = 1;
+  butterfly.trailBoost = false;
+  backgroundLayer.style.filter = '';
 }
 
 // ── Ambient Sparkles ─────────────────────────────────────────
@@ -399,6 +717,18 @@ function showToast(msg) {
   }, 2000);
 }
 
+function spawnPowerUp() {
+  const type = POWER_UP_TYPES[Math.floor(Math.random() * POWER_UP_TYPES.length)];
+
+  powerUp = {
+    type,
+    fx: 0.2 + Math.random() * 0.6,
+    fy: 0.3 + Math.random() * 0.5,
+    collected: false,
+    phase: Math.random() * Math.PI * 2
+  };
+}
+
 // ── Win Handling ─────────────────────────────────────────────
 function triggerWin() {
   gameState = 'won';
@@ -426,7 +756,15 @@ function resetGame(keepProgress = false) {
   } else {
     clearProgress();
   }
+  spawnPowerUp();
   particles = [];
+  clearSurpriseEffects();
+  if (powerUpTimer) {
+    clearTimeout(powerUpTimer);
+    powerUpTimer = null;
+  }
+  activePowerUpEndsAt = 0;
+  activePowerUp = null;
   butterfly.x       = canvas.width  * 0.5;
   butterfly.y       = canvas.height * 0.5;
   butterfly.targetX = butterfly.x;
@@ -468,6 +806,77 @@ muteBtn.addEventListener('click', () => {
   muteBtn.textContent = muted ? '🔇' : '🔊';
 });
 
+function checkPowerUpCollect() {
+  if (!powerUp || powerUp.collected) return;
+
+  const x = powerUp.fx * canvas.width;
+  const y = powerUp.fy * canvas.height;
+
+  const dx = butterfly.x - x;
+  const dy = butterfly.y - y;
+
+  if (dx * dx + dy * dy < 60 * 60) {
+    powerUp.collected = true;
+
+    activatePowerUp(powerUp.type);
+
+    spawnBurst(x, y, 60);
+    showToast('✨ Surprise! ✨');
+  }
+}
+
+function deactivatePowerUp() {
+  clearSurpriseEffects();
+  activePowerUp = null;
+  powerUpTimer = null;
+  activePowerUpEndsAt = 0;
+}
+
+function activatePowerUp(type) {
+  activePowerUp = type;
+
+  if (powerUpTimer) clearTimeout(powerUpTimer);
+  clearSurpriseEffects();
+
+  switch (type) {
+    case 'GIANT':
+      butterfly.scale = 2.2;
+      break;
+
+    case 'FLOCK':
+      spawnFlock();
+      break;
+
+    case 'TRAIL':
+      butterfly.trailBoost = true;
+      break;
+
+    case 'RAINBOW_TRAIL':
+      break;
+
+    case 'FLOWER_BLOOM':
+      initFlowerBloom();
+      break;
+
+    case 'SPIRAL_DASH':
+      initSpiralDash();
+      break;
+
+    case 'SPARKLE_STORM':
+      initSparkleStorm();
+      break;
+
+    case 'NIGHT_MODE_WITH_FIREFLIES':
+      initFireflies();
+      break;
+  }
+
+  powerUpTimer = setTimeout(() => {
+    deactivatePowerUp();
+  }, SURPRISE_DURATION_MS);
+  activePowerUpEndsAt = performance.now() + SURPRISE_DURATION_MS;
+}
+
 // ── Collection ───────────────────────────────────────────────
 const COLLECTION_MESSAGES = [
   c => `You found ${c}! ✨`,
@@ -501,12 +910,15 @@ function tryCollect() {
     saveProgress(); // FIX 3
     if (letters.every(l => l.collected)) triggerWin();
   }
+  checkPowerUpCollect();
 }
 
 // ── Drawing: Butterfly ───────────────────────────────────────
-function drawButterfly(x, y, rotation, wingScale, wingPhase) {
+function drawButterfly(x, y, rotation, wingScale, wingPhase, renderScale = 1) {
   ctx.save();
   ctx.translate(x, y);
+  ctx.scale(renderScale, renderScale);
+    
   ctx.rotate(rotation);
 
   const ws = 0.7 + Math.sin(wingPhase) * 0.3; // wing open/close
@@ -648,6 +1060,72 @@ function drawAmbientSparkles(dt) {
   }
 }
 
+function drawPowerUp() {
+  if (!powerUp || powerUp.collected) return;
+
+  powerUp.phase += 0.05;
+
+  const x = powerUp.fx * canvas.width;
+  const y = powerUp.fy * canvas.height + Math.sin(powerUp.phase) * 6;
+
+  const glow = 28 + Math.sin(powerUp.phase * 1.5) * 6;
+
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, glow);
+  grad.addColorStop(0, 'rgba(120,255,255,0.6)');
+  grad.addColorStop(1, 'rgba(120,255,255,0)');
+
+  ctx.beginPath();
+  ctx.arc(x, y, glow, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // icon (simple star)
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+let flock = [];
+
+function spawnFlock() {
+  flock = [];
+
+  for (let i = 0; i < 10; i++) {
+    flock.push({
+      x: -50 - i * 40,
+      y: canvas.height * (0.3 + Math.random() * 0.4),
+      vx: 120 + Math.random() * 80,
+      phase: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+function updateFlock(dt) {
+  flock.forEach(b => {
+    b.x += b.vx * dt;
+    b.y += Math.sin(b.phase) * 10 * dt;
+    b.phase += dt * 6;
+  });
+
+  flock = flock.filter(b => b.x < canvas.width + 50);
+
+  if (activePowerUp === 'FLOCK' && flock.length < 6) {
+    flock.push({
+      x: -70,
+      y: canvas.height * (0.28 + Math.random() * 0.44),
+      vx: 140 + Math.random() * 70,
+      phase: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+function drawFlock() {
+  flock.forEach(b => {
+    drawButterfly(b.x, b.y, Math.PI / 2, 0.6, b.phase);
+  });
+}
+
 // ── Game Loop ────────────────────────────────────────────────
 let lastTime = null;
 
@@ -659,6 +1137,7 @@ function gameLoop(timestamp) {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawAmbientSparkles(dt);
+  backgroundLayer.style.filter = '';
 
   // ── FIX 2: Welcome screen — butterfly drifts in background ──
   if (gameState === 'welcome') {
@@ -676,13 +1155,14 @@ function gameLoop(timestamp) {
     }
     updateParticles(dt);
     drawParticles();
-    drawButterfly(demoX, demoY, demoRot, 0.85, demo.wingPhase);
+    drawButterfly(demoX, demoY, demoRot, 0.85, demo.wingPhase, 1);
     return;
   }
 
   // ── FIX 1: Frame-rate-independent spring physics ─────────────
   butterfly.bobPhase  += 2.5 * dt;
   butterfly.wingPhase += 8   * dt;
+  updateSpiralDash(dt);
 
   const ax = (butterfly.targetX - butterfly.x) * SPRING_K;
   const ay = (butterfly.targetY - butterfly.y) * SPRING_K;
@@ -708,13 +1188,51 @@ function gameLoop(timestamp) {
     butterfly.rotation *= Math.pow(0.001, dt);
   }
 
-  if (speed > 20) spawnTrail(butterfly.x, butterfly.y);
+  if (speed > 20 || butterfly.trailBoost) {
+    spawnTrail(butterfly.x, butterfly.y);
+  }
+
+  if (activePowerUp === 'RAINBOW_TRAIL') {
+    spawnRainbowTrailBurst(butterfly.x, butterfly.y);
+  }
 
   updateParticles(dt);
+  updateRainbowTrail(dt);
+  updateFlowerBloom(dt);
+  updateSparkleStorm(dt);
+  updateFireflies(dt);
 
+  const nightAlpha = surpriseOverlayAlpha();
+  if (nightAlpha > 0) {
+    backgroundLayer.style.filter = `brightness(${1 - nightAlpha * 0.9}) saturate(${1 - nightAlpha * 0.35})`;
+  }
+
+  drawFlowerBloom();
   drawLetters();
   drawParticles();
-  drawButterfly(butterfly.x, butterfly.y, butterfly.rotation, 1, butterfly.wingPhase);
+  drawRainbowTrail();
+  drawSparkleStorm();
+
+  if (nightAlpha > 0) {
+    ctx.save();
+    ctx.fillStyle = `rgba(13, 16, 46, ${nightAlpha})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    drawFireflies(0.55 + nightAlpha);
+  }
+
+  drawButterfly(
+    butterfly.x,
+    butterfly.y,
+    butterfly.rotation,
+    1,
+    butterfly.wingPhase,
+    butterfly.scale || 1
+  );
+  drawPowerUp();
+    
+  updateFlock(dt);
+  drawFlock();
 
   if (gameState === 'playing') tryCollect();
 }
