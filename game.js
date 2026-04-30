@@ -98,7 +98,6 @@ const SURPRISE_DURATION_MS = 8000;
 const POWER_UP_TYPES = [
   'GIANT',
   'FLOCK',
-  'TRAIL',
   'RAINBOW_TRAIL',
   'FLOWER_BLOOM',
   'SPARKLE_STORM',
@@ -107,6 +106,187 @@ const POWER_UP_TYPES = [
 
 // ── Mute ────────────────────────────────────────────────────
 let muted = false;
+const MUTE_SAVE_KEY = 'harpers-garden-muted-v1';
+
+// ── Audio ───────────────────────────────────────────────────
+let audioCtx = null;
+let masterGain = null;
+let bgMusic = null;
+let successSound = null;
+const BG_MUSIC_TRACKS = [
+  'sounds/bg-music-1.mp3',
+  'sounds/bg-music-2.mp3',
+  'sounds/bg-music-3.mp3'
+];
+let currentBgMusicIndex = Math.floor(Math.random() * BG_MUSIC_TRACKS.length);
+
+function pickNextBgMusicIndex() {
+  if (BG_MUSIC_TRACKS.length <= 1) return 0;
+
+  let nextIndex = currentBgMusicIndex;
+  while (nextIndex === currentBgMusicIndex) {
+    nextIndex = Math.floor(Math.random() * BG_MUSIC_TRACKS.length);
+  }
+  return nextIndex;
+}
+
+function setBackgroundMusicTrack(index) {
+  ensureMediaAudio();
+  if (!bgMusic) return;
+
+  currentBgMusicIndex = index;
+  bgMusic.src = BG_MUSIC_TRACKS[currentBgMusicIndex];
+  bgMusic.load();
+  bgMusic.volume = muted ? 0 : 0.192;
+}
+
+function ensureAudioContext() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+
+    audioCtx = new AudioContextClass();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = muted ? 0 : 0.9;
+    masterGain.connect(audioCtx.destination);
+  }
+
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+
+  return audioCtx;
+}
+
+function ensureMediaAudio() {
+  if (!bgMusic) {
+    bgMusic = new Audio();
+    bgMusic.preload = 'auto';
+    bgMusic.addEventListener('ended', () => {
+      const nextIndex = pickNextBgMusicIndex();
+      setBackgroundMusicTrack(nextIndex);
+
+      if (!muted && gameState !== 'welcome') {
+        bgMusic.play().catch(() => {});
+      }
+    });
+    setBackgroundMusicTrack(currentBgMusicIndex);
+  }
+
+  if (!successSound) {
+    successSound = new Audio('sounds/success.mp3');
+    successSound.preload = 'auto';
+    successSound.volume = muted ? 0 : 0.325;
+    successSound.addEventListener('ended', () => {
+      if (!muted && bgMusic && gameState !== 'welcome') {
+        bgMusic.play().catch(() => {});
+      }
+    });
+  }
+}
+
+function syncAudioMute() {
+  if (masterGain) masterGain.gain.value = muted ? 0 : 0.9;
+  if (bgMusic) bgMusic.volume = muted ? 0 : 0.192;
+  if (successSound) successSound.volume = muted ? 0 : 0.325;
+}
+
+function saveMuteState() {
+  try {
+    localStorage.setItem(MUTE_SAVE_KEY, JSON.stringify(muted));
+  } catch (_) {}
+}
+
+function loadMuteState() {
+  try {
+    const raw = localStorage.getItem(MUTE_SAVE_KEY);
+    if (raw === null) return;
+    muted = JSON.parse(raw) === true;
+  } catch (_) {}
+}
+
+function syncMuteButton() {
+  muteBtn.textContent = muted ? '🔇' : '🔊';
+}
+
+function primeAudio() {
+  ensureAudioContext();
+  ensureMediaAudio();
+
+  if (!muted && bgMusic?.paused) {
+    bgMusic.play().catch(() => {});
+  }
+}
+
+function playSuccessSound() {
+  if (muted) return;
+  ensureMediaAudio();
+  if (!successSound) return;
+
+  bgMusic?.pause();
+  successSound.currentTime = 0;
+  successSound.play().catch(() => {});
+}
+
+function playLetterPopSound() {
+  if (muted) return;
+  const ctx = ensureAudioContext();
+  if (!ctx || !masterGain) return;
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(520 + Math.random() * 120, now);
+  osc.frequency.exponentialRampToValueAtTime(780 + Math.random() * 100, now + 0.06);
+  osc.frequency.exponentialRampToValueAtTime(260, now + 0.15);
+
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(1500, now);
+  filter.Q.value = 0.8;
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.13, now + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+
+  osc.start(now);
+  osc.stop(now + 0.18);
+}
+
+function playSurpriseSound() {
+  if (muted) return;
+  const ctx = ensureAudioContext();
+  if (!ctx || !masterGain) return;
+
+  const now = ctx.currentTime;
+  const notes = [523.25, 659.25, 783.99, 1046.5];
+
+  notes.forEach((freq, index) => {
+    const start = now + index * 0.055;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = index % 2 === 0 ? 'sine' : 'triangle';
+    osc.frequency.setValueAtTime(freq, start);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.04, start + 0.16);
+
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.12, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.26);
+
+    osc.connect(gain);
+    gain.connect(masterGain);
+
+    osc.start(start);
+    osc.stop(start + 0.28);
+  });
+}
 
 // ── Idle Hint ───────────────────────────────────────────────
 const IDLE_HINT_MS = 8000;
@@ -684,6 +864,7 @@ function dismissInstruction() {
 canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
   if (gameState !== 'playing') return;
+  primeAudio();
   resetIdleHintTimer();
   pointerDown = true;
   const pos = getCanvasPos(e);
@@ -695,6 +876,7 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointermove', e => {
   e.preventDefault();
   if (gameState !== 'playing' || !pointerDown) return;
+  primeAudio();
   resetIdleHintTimer();
   const pos = getCanvasPos(e);
   butterfly.targetX = pos.x;
@@ -719,11 +901,26 @@ function showToast(msg) {
 
 function spawnPowerUp() {
   const type = POWER_UP_TYPES[Math.floor(Math.random() * POWER_UP_TYPES.length)];
+  const startFx = 0.5;
+  const startFy = 0.5;
+  let fx = 0.2 + Math.random() * 0.6;
+  let fy = 0.3 + Math.random() * 0.5;
+  let attempts = 0;
+
+  while (attempts < 20) {
+    const dx = fx - startFx;
+    const dy = fy - startFy;
+    if (dx * dx + dy * dy > 0.035) break;
+
+    fx = 0.2 + Math.random() * 0.6;
+    fy = 0.3 + Math.random() * 0.5;
+    attempts += 1;
+  }
 
   powerUp = {
     type,
-    fx: 0.2 + Math.random() * 0.6,
-    fy: 0.3 + Math.random() * 0.5,
+    fx,
+    fy,
     collected: false,
     phase: Math.random() * Math.PI * 2
   };
@@ -736,6 +933,7 @@ function triggerWin() {
   butterfly.targetX = canvas.width  * 0.5;
   butterfly.targetY = canvas.height * 0.5;
   spawnPetalBurst();
+  playSuccessSound();
   setTimeout(() => winOverlay.classList.remove('hidden'), 1000);
 }
 
@@ -788,22 +986,35 @@ function resetGame(keepProgress = false) {
 
 // ── Start / Play Again / Restart ─────────────────────────────
 startBtn.addEventListener('click', () => {
+  primeAudio();
   welcomeOverlay.classList.add('hidden');
   resetGame(true); // FIX 3 — resume saved progress on Start
 });
 
 playAgainBtn.addEventListener('click', () => {
+  primeAudio();
   resetGame(false); // explicit replay = fresh start, clears save
 });
 
 restartBtn.addEventListener('click', () => {
   if (gameState === 'welcome') return;
+  primeAudio();
   resetGame(false);
 });
 
 muteBtn.addEventListener('click', () => {
   muted = !muted;
-  muteBtn.textContent = muted ? '🔇' : '🔊';
+  syncMuteButton();
+  saveMuteState();
+
+  ensureMediaAudio();
+  syncAudioMute();
+
+  if (muted) {
+    bgMusic?.pause();
+  } else {
+    primeAudio();
+  }
 });
 
 function checkPowerUpCollect() {
@@ -821,6 +1032,7 @@ function checkPowerUpCollect() {
     activatePowerUp(powerUp.type);
 
     spawnBurst(x, y, 60);
+    playSurpriseSound();
     showToast('✨ Surprise! ✨');
   }
 }
@@ -896,6 +1108,7 @@ function tryCollect() {
     if (dx * dx + dy * dy < COLLECT_RADIUS * COLLECT_RADIUS) {
       l.collected = true;
       anyNew = true;
+      playLetterPopSound();
       trackerLetters[l.index].classList.add('collected');
       if (hintedLetterIndex === l.index) {
         clearIdleHint();
@@ -1272,6 +1485,8 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 // ── Boot ─────────────────────────────────────────────────────
+loadMuteState();
+syncMuteButton();
 currentWord = pickNextWord();
 initLetters(currentWord);
 butterfly.x = butterfly.targetX = canvas.width  * 0.5;
