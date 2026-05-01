@@ -125,6 +125,25 @@ const POWER_UP_TYPES = [
 
 let powerUpBag = [];
 
+function refillPowerUpBag() {
+  powerUpBag = [...POWER_UP_TYPES,
+               'RAINBOW_TRAIL'];
+
+  // Fisher-Yates shuffle
+  for (let i = powerUpBag.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [powerUpBag[i], powerUpBag[j]] = [powerUpBag[j], powerUpBag[i]];
+  }
+}
+
+function getNextPowerUpType() {
+  if (powerUpBag.length === 0) {
+    refillPowerUpBag();
+  }
+
+  return powerUpBag.pop(); // removes + returns last item
+}
+
 // ── Mute ────────────────────────────────────────────────────
 let muted = false;
 const MUTE_SAVE_KEY = 'harpers-garden-muted-v1';
@@ -921,7 +940,8 @@ function showToast(msg) {
 }
 
 function spawnPowerUp() {
-  const type = POWER_UP_TYPES[Math.floor(Math.random() * POWER_UP_TYPES.length)];
+  //const type = POWER_UP_TYPES[Math.floor(Math.random() * POWER_UP_TYPES.length)];
+  const type = getNextPowerUpType();
   const startFx = 0.5;
   const startFy = 0.5;
   let fx = 0.2 + Math.random() * 0.6;
@@ -970,6 +990,9 @@ function resetGame(keepProgress = false) {
   setRandomBackground();
   currentWord = pickNextWord();
   initLetters(currentWord);
+  if (powerUpBag.length === 0) {
+     refillPowerUpBag();
+  }
   if (keepProgress) {
     loadProgress();
   } else {
