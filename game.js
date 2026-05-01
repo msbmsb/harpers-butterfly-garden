@@ -981,7 +981,7 @@ function triggerWin() {
 const winTitle = document.getElementById('win-title');
 
 function updateWinTitle(word) {
-  winTitle.textContent = `🦋 ${word.split('').join(' ')} 🦋`;
+  winTitle.textContent = `🦋 ${word} 🦋`;
 }
 
 // ── Reset ────────────────────────────────────────────────────
