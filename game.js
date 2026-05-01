@@ -1096,7 +1096,7 @@ function activatePowerUp(type) {
 
   switch (type) {
     case 'GIANT':
-      butterfly.scale = 2.2;
+      butterfly.scale = 3.5;
       break;
 
     case 'FLOCK':
@@ -1136,7 +1136,7 @@ function activatePowerUp(type) {
 // ── Collection ───────────────────────────────────────────────
 const COLLECTION_MESSAGES = [
   c => `You found ${c}! ✨`,
-  c => `${c} is yours! 🌸`,
+  c => `${c}! 🌸`,
   c => `Woohoo! ${c}! 🦋`,
   c => `${c}! Keep going! 🌟`,
 ];
