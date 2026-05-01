@@ -63,9 +63,21 @@ const WORDS = [
   'RAINBOW',
   'BLOSSOM',
   'SPRING',
-   'LADYBUG',
+  'LADYBUG',
   'HARPER'
 ];
+
+let wordBag = [];
+
+function refillWordBag() {
+  wordBag = [...WORDS];
+
+  // Fisher-Yates shuffle
+  for (let i = wordBag.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [wordBag[i], wordBag[j]] = [wordBag[j], wordBag[i]];
+  }
+}
 
 let currentWord = FIRST_WORD;
 let hasPlayedOnce = false;
@@ -76,7 +88,12 @@ function pickNextWord() {
     return FIRST_WORD;
   }
 
-  return WORDS[Math.floor(Math.random() * WORDS.length)];
+  if (wordBag.length === 0) {
+    refillWordBag();
+  }
+
+  return wordBag.pop();
+  //return WORDS[Math.floor(Math.random() * WORDS.length)];
 }
 
 const progressTracker = document.getElementById('progress-tracker');
@@ -988,6 +1005,9 @@ function updateWinTitle(word) {
 function resetGame(keepProgress = false) {
   updateWinTitle(currentWord);
   setRandomBackground();
+  if (wordBag.length === 0) {
+    refillWordBag();
+  }
   currentWord = pickNextWord();
   initLetters(currentWord);
   if (powerUpBag.length === 0) {
