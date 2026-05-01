@@ -30,6 +30,9 @@ function refreshTrackerRefs() {
   trackerLetters = document.querySelectorAll('.tracker-letter');
 }
 
+const tutorialBtn = document.getElementById('tutorial-btn');
+const tutorialOverlay = document.getElementById('tutorial-overlay');
+const closeTutorialBtn = document.getElementById('close-tutorial-btn');
 
 
 // ── Backgrounds ─────────────────────────────────────────────
@@ -91,6 +94,14 @@ function buildTracker(word) {
     
   refreshTrackerRefs();
 }
+
+tutorialBtn.addEventListener('click', () => {
+  tutorialOverlay.classList.remove('hidden');
+});
+
+closeTutorialBtn.addEventListener('click', () => {
+  tutorialOverlay.classList.add('hidden');
+});
 
 // ── State machine ───────────────────────────────────────────
 // states: 'welcome' | 'playing' | 'won'
