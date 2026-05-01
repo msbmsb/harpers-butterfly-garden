@@ -216,7 +216,7 @@ function ensureMediaAudio() {
   if (!successSound) {
     successSound = new Audio('sounds/success.mp3');
     successSound.preload = 'auto';
-    successSound.volume = muted ? 0 : 0.125;
+    successSound.volume = muted ? 0 : 0.2;
     successSound.addEventListener('ended', () => {
       if (!muted && bgMusic && gameState !== 'welcome') {
         bgMusic.play().catch(() => {});
@@ -228,7 +228,7 @@ function ensureMediaAudio() {
 function syncAudioMute() {
   if (masterGain) masterGain.gain.value = muted ? 0 : 0.9;
   if (bgMusic) bgMusic.volume = muted ? 0 : 0.192;
-  if (successSound) successSound.volume = muted ? 0 : 0.325;
+  if (successSound) successSound.volume = muted ? 0 : 0.2;
 }
 
 function saveMuteState() {
