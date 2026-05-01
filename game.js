@@ -1345,16 +1345,33 @@ function drawPowerUp() {
   const x = powerUp.fx * canvas.width;
   const y = powerUp.fy * canvas.height + Math.sin(powerUp.phase) * 6;
 
-  const glow = 28 + Math.sin(powerUp.phase * 1.5) * 6;
+  const glow = 36 + Math.sin(powerUp.phase * 1.8) * 10;
 
   const grad = ctx.createRadialGradient(x, y, 0, x, y, glow);
-  grad.addColorStop(0, 'rgba(120,255,255,0.6)');
+  grad.addColorStop(0, 'rgba(180,255,255,0.85)');
+  grad.addColorStop(0.4, 'rgba(120,255,255,0.5)');
   grad.addColorStop(1, 'rgba(120,255,255,0)');
 
   ctx.beginPath();
   ctx.arc(x, y, glow, 0, Math.PI * 2);
   ctx.fillStyle = grad;
   ctx.fill();
+
+   for (let i = 0; i < 3; i++) {
+    const angle = powerUp.phase + i * (Math.PI * 2 / 3);
+  const radius = 18;
+
+  const sx = x + Math.cos(angle) * radius;
+  const sy = y + Math.sin(angle) * radius;
+
+  ctx.save();
+  ctx.globalAlpha = 0.7;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
 
   // icon (simple star)
   ctx.fillStyle = '#ffffff';
