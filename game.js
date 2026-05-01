@@ -8,6 +8,12 @@
 const canvas = document.getElementById('game-canvas');
 const ctx    = canvas.getContext('2d');
 
+// ── Virtual Game Size (fixed world) ─────────────────────────
+const GAME_WIDTH = 1000;
+const GAME_HEIGHT = 700;
+
+let scale = 1;
+
 // ── DOM refs ────────────────────────────────────────────────
 const welcomeOverlay     = document.getElementById('welcome-overlay');
 const winOverlay         = document.getElementById('win-overlay');
@@ -53,7 +59,9 @@ const WORDS = [
   'SUNSHINE',
   'RAINBOW',
   'BLOSSOM',
-  'SPRING'
+  'SPRING',
+   'LADYBUG',
+  'HARPER'
 ];
 
 let currentWord = FIRST_WORD;
@@ -103,6 +111,8 @@ const POWER_UP_TYPES = [
   'SPARKLE_STORM',
   'NIGHT_MODE_WITH_FIREFLIES'
 ];
+
+let powerUpBag = [];
 
 // ── Mute ────────────────────────────────────────────────────
 let muted = false;
@@ -176,7 +186,7 @@ function ensureMediaAudio() {
   if (!successSound) {
     successSound = new Audio('sounds/success.mp3');
     successSound.preload = 'auto';
-    successSound.volume = muted ? 0 : 0.225;
+    successSound.volume = muted ? 0 : 0.125;
     successSound.addEventListener('ended', () => {
       if (!muted && bgMusic && gameState !== 'welcome') {
         bgMusic.play().catch(() => {});
