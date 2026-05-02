@@ -250,6 +250,14 @@ body {
   margin-bottom: 28px;
 }
 
+.made-by {
+  margin-top: 12px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
 /* ── Splash Screen ───────────────────────────────────────── */
 .splash-overlay {
   background-image: url('images/splash-screen.png');
