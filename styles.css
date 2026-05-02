@@ -264,6 +264,13 @@ body {
   gap: 20px;
 }
 
+.secondary-btn {
+  padding: 10px 28px;
+  font-size: 1rem;
+  opacity: 0.85;
+  transform: scale(0.95);
+}
+
 .made-by {
   margin-top: 12px;
   font-size: 13px;
