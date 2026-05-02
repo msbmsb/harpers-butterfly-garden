@@ -250,6 +250,20 @@ body {
   margin-bottom: 28px;
 }
 
+.button-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.button-group {
+  display: flex;
+  gap: 20px;
+}
+
 .made-by {
   margin-top: 12px;
   font-size: 13px;
